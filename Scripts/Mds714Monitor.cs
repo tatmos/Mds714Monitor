@@ -1,6 +1,11 @@
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+#if ADX2
 using CriWare;
+#endif
+using MyDearest;
+using UnityEditor.PackageManager.UI;
 
 namespace MDSound
 {
@@ -10,6 +15,7 @@ namespace MDSound
 	public class Mds714Monitor : EditorWindow
 	{
 		private static int m_maxcannnels = 16;
+		private static float m_viewSize = 0.25f;
 
 		[MenuItem ("Window/MDSound/Mds714Monitor")]
 		public static void ShowWindow () => GetWindow (typeof(Mds714Monitor), false, "Mds714Monitor");
@@ -22,82 +28,71 @@ namespace MDSound
 
 		private void OnGUI ()
 		{
-
-			if (GUILayout.Button ("ビジュアライズ " + isVisualize.ToString (), GUILayout.Width (200), GUILayout.Height (100)))
+			m_updateFrame = EditorGUILayout.IntSlider ("更新フレーム数", (int)m_updateFrame, 1, 60);
+			m_maxcannnels = EditorGUILayout.IntSlider ("最大表示チャンネル数", m_maxcannnels, 1, 16);
+			m_viewSize = EditorGUILayout.Slider ("UI表示サイズ", m_viewSize, 0.1f, 6f);
+			if (GUI.changed)
 			{
-				if (isVisualize == false)
+				if (speakerLevelDisplayObj != null)
 				{
-					isVisualize = true;
-
-					speakerLevelDisplayObj = new GameObject ("Visuzlize714");
-					SpeakerLevelDisplay = speakerLevelDisplayObj.AddComponent<SpeakerLevelDisplay> ();
-
-					SpeakerLevelDisplay.mainCamera = Camera.main;
-
-					float z = 3;
-					float y = 0.0f;
-					float size = 0.25f;
-
-					// 7.1.4chスピーカーの座標を設定
-					SpeakerLevelDisplay.relativeSpeakerPositions = new Vector3[]
-					{
-						new Vector3 (-3 * size, 1 * size+y, 3 * size + z), // フロント左
-						new Vector3 (3 * size, 1 * size+y, 3 * size + z), // フロント右
-						new Vector3 (0 * size, 1 * size+y, 3 * size + z), // フロントセンター
-						new Vector3 (1f * size, 0 * size+y, 3 * size + z), // サブウーファー
-						new Vector3 (-3 * size, 1 * size+y, 0 * size + z), // サイド左
-						new Vector3 (3 * size, 1 * size+y, 0 * size + z), // サイド右
-						new Vector3 (-3 * size, 1 * size+y, -3 * size + z), // リア左
-						new Vector3 (3 * size, 1 * size+y, -3 * size + z), // リア右
-						new Vector3 (-3 * size, 2.5f * size+y, 3 * size + z), // フロントトップ左
-						new Vector3 (3 * size, 2.5f * size+y, 3 * size + z), // フロントトップ右
-						new Vector3 (-3 * size, 2.5f * size+y, -3 * size + z), // リアトップ左
-						new Vector3 (3 * size, 2.5f * size+y, -3 * size + z), // リアトップ右
-						new Vector3 (-3 * size, -0.5f * size+y, 3 * size + z), // フロントボトム左
-						new Vector3 (3 * size, -0.5f * size+y, 3 * size + z), // フロントボトム右
-						new Vector3 (-3 * size, -0.5f * size+y, -3 * size + z), // リアボトム左
-						new Vector3 (3 * size, -0.5f * size+y, -3 * size + z) // リアボトム右
-					};
-
-					SpeakerLevelDisplay.levels = new float[12+4]; // レベルを初期化
+					SpeakerLevelDisplay.CreateSpeakers (m_maxcannnels, m_viewSize);
 				}
-				else
-				{
-					if (speakerLevelDisplayObj != null)
-					{
-						Destroy (speakerLevelDisplayObj);
-						speakerLevelDisplayObj = null;
-					}
+			}
 
-					isVisualize = false;
+
+			if (EditorApplication.isPlaying)
+			{
+				if (GUILayout.Button ("ビジュアライズ " + isVisualize.ToString (), GUILayout.Width (200),
+					    GUILayout.Height (100)))
+				{
+					if (isVisualize == false)
+					{
+						isVisualize = true;
+
+						speakerLevelDisplayObj = new GameObject ("Visuzlize714");
+						SpeakerLevelDisplay = speakerLevelDisplayObj.AddComponent<SpeakerLevelDisplay> ();
+
+						SpeakerLevelDisplay.CreateSpeakers (m_maxcannnels, m_viewSize);
+					}
+					else
+					{
+						if (speakerLevelDisplayObj != null)
+						{
+							Destroy (speakerLevelDisplayObj);
+							speakerLevelDisplayObj = null;
+						}
+
+						isVisualize = false;
+					}
 				}
 			}
 		}
+
 
 		/// <summary>
-		///　Volume値からdB値を得る
+		/// 最後に更新した時刻
 		/// </summary>
-		/// <param name="volume"></param>
-		/// <returns></returns>
-		public static float GetDb (float volume)
-		{
-			float retValue = Mathf.Floor (20.0f * Mathf.Log10 (volume));
-			if (retValue < -115)
-			{
-				retValue = -115;
-			}
+		private static double m_updateLastTime = 0;
 
-			return retValue;
-		}
+		/// <summary>
+		/// 更新フレーム数
+		/// </summary>
+		private double m_updateFrame = 1;
 
 		/// <summary>
 		/// Update
 		/// </summary>
 		private void Update ()
 		{
-			if (!EditorApplication.isPlaying )
+			if (!EditorApplication.isPlaying || !SoundManager.HasInstance)
 			{
 				return;
+			}
+
+			if ((EditorApplication.timeSinceStartup - m_updateLastTime) >= 0.01666f * m_updateFrame)
+			{
+				Repaint ();
+				m_updateLastTime = EditorApplication.timeSinceStartup;
 			}
 
 			if (isVisualize)
@@ -107,13 +102,34 @@ namespace MDSound
 					return;
 				}
 
-				var busName = "MasterOut";
+				if (SoundManager.Data.AdxAcfData == null)
+				{
+					return;
+				}
+
+
+				string[] busNames = SoundManager.Data.AdxAcfData.acfData.busNames.ToArray ();
+				var busName = busNames[0];
 
 				for (int channel = 0; channel < m_maxcannnels; channel++)
 				{
-					float level = GetDb (CriAtom.GetBusAnalyzerInfo (busName).peakLevels[channel]);
+					SpeakerLevelDisplay.levels[channel] = -115;
+				}
+
+				for (int channel = 0; channel < m_maxcannnels; channel++)
+				{
+					float level = MdsEditorUtil.GetDb (CriAtom.GetBusAnalyzerInfo (busName).peakLevels[channel]);
+					float peakHoldLevel =
+						MdsEditorUtil.GetDb (CriAtom.GetBusAnalyzerInfo (busName).peakHoldLevels[channel]);
 					SpeakerLevelDisplay.levels[channel] = level;
 				}
+
+
+				// L, R, C, LFE, Ls, Rs, Lb, Rb, Ltf, Rtf, Ltb, Rtb
+				// 0  1  2  3    4   5   6   7   8    9    10   11
+
+				// L R C LFE Ls Rs LTF RTF
+				// 0 1 2 3   4  5  8   9
 			}
 		}
 	}

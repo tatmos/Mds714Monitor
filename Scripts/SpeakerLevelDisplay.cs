@@ -100,5 +100,67 @@ namespace MDSound
 				}
 			}
 		}
+
+		public void CreateSpeakers (int channnels, float size = 0.25f)
+		{
+			this.mainCamera = Camera.main;
+
+			float z = 3;
+			float y = -0.25f;
+
+			// 7.1.4chスピーカーの座標を設定
+			this.relativeSpeakerPositions = new Vector3[channnels];
+
+			if (channnels > 1)
+			{
+				this.relativeSpeakerPositions[0] = new Vector3 (-3 * size, 1 * size + y, 3 * size + z); // フロント左
+
+				this.relativeSpeakerPositions[1] = new Vector3 (3 * size, 1 * size + y, 3 * size + z); // フロント右
+			}
+
+			if (channnels > 3)
+			{
+				this.relativeSpeakerPositions[2] = new Vector3 (0 * size, 1 * size + y, 3 * size + z); // フロントセンター
+				this.relativeSpeakerPositions[3] = new Vector3 (1f * size, 0 * size + y, 3 * size + z); // サブウーファー
+			}
+
+			if (channnels > 5)
+			{
+				this.relativeSpeakerPositions[4] = new Vector3 (-3 * size, 1 * size + y, 0 * size + z); // サイド左
+				this.relativeSpeakerPositions[5] = new Vector3 (3 * size, 1 * size + y, 0 * size + z); // サイド右
+			}
+
+			if (channnels > 7)
+			{
+				this.relativeSpeakerPositions[6] = new Vector3 (-3 * size, 1 * size + y, -3 * size + z); // リア左
+				this.relativeSpeakerPositions[7] = new Vector3 (3 * size, 1 * size + y, -3 * size + z); // リア右
+			}
+
+			if (channnels > 9)
+			{
+				this.relativeSpeakerPositions[8] = new Vector3 (-3 * size, 2.5f * size + y, 3 * size + z); // フロントトップ左
+				this.relativeSpeakerPositions[9] = new Vector3 (3 * size, 2.5f * size + y, 3 * size + z); // フロントトップ右
+			}
+
+			if (channnels > 11)
+			{
+				this.relativeSpeakerPositions[10] = new Vector3 (-3 * size, 2.5f * size + y, -3 * size + z); // リアトップ左
+				this.relativeSpeakerPositions[11] = new Vector3 (3 * size, 2.5f * size + y, -3 * size + z); // リアトップ右
+			}
+
+			if (channnels > 13)
+			{
+				this.relativeSpeakerPositions[12] = new Vector3 (-3 * size, -0.5f * size + y, 3 * size + z); // フロントボトム左
+				this.relativeSpeakerPositions[13] = new Vector3 (3 * size, -0.5f * size + y, 3 * size + z); // フロントボトム右
+			}
+
+			if (channnels > 15)
+			{
+				this.relativeSpeakerPositions[14] = new Vector3 (-3 * size, -0.5f * size + y, -3 * size + z); // リアボトム左
+				this.relativeSpeakerPositions[15] = new Vector3 (3 * size, -0.5f * size + y, -3 * size + z); // リアボトム右
+			}
+
+			this.levels = new float[channnels]; // レベルを初期化
+		}
 	}
 }
